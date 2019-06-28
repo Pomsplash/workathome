@@ -3,14 +3,18 @@ import sys
 from datetime import datetime,time,timedelta
 import glob
 import re
+import subprocess
 
 DIR_NAME = '/var/log/syslog/*/*/*/*.log'
-SAVE_FILE = '/tmp/test'
+SAVE_DIR = '/tmp/test/syslog'
+SERVER_NAME = ['caletas1','caletas2','caletas3','caletas4','caletql2']
 
 def main():
     date_list = dateconvert()
-    filelog = filelist()
-    collectlog(date_list,filelog)
+    filelist = getFilelog()
+    makefolder()
+    collectlog(date_list,filelist)
+    
 
 def dateconvert():
     date_list = []
@@ -22,30 +26,51 @@ def dateconvert():
         x = startdate_convert+timedelta(days=i)
         y = x.strftime("%Y%m%d")
         date_list.append(y)     
-        
-    print(date_list)
     return date_list
 
-def filelist():
-    filelog = []
+def getFilelog():
+    filelist = []
     dir = glob.glob(DIR_NAME)
     for d in dir:
-        filelog.append(d)
+        filelist.append(d)
+    return filelist
 
-    #print(filelog)
-    return filelog
+def makefolder():
+    path = SAVE_DIR  + datetime.now().strftime('%Y%m%d')
+    if os.path.isdir(path):
+        print("File already exist")
+    else:
+        cmd = "mkdir " + SAVE_DIR  + datetime.now().strftime('%Y%m%d')
+        print("Make file success")
+        subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True).communicate()[0]
 
-def collectlog(date_list,filelog):
-    r = re.compile(r'w*\caletas1\w*')
-    select = filter(r.search,filelog)
-    print(select)
-    
-    #for i in date_list:
-       # if re.match()
-        
-        
+def collectlog(date_list,filelist):
+    count = 0
+    lenserver = len(SERVER_NAME)
+  
+    while count < lenserver:
+        i=0
+        nameoffile = SAVE_DIR + datetime.now().strftime('%Y%m%d') + '/' +SERVER_NAME[count]
+        r = re.compile(r'w*(%s)\w*'%SERVER_NAME[count])
+        select = filter(r.search,filelist)
+        lengthdatelist = len(date_list)
+        fopen = open(nameoffile, "w")
+        while i < lengthdatelist:
+            if any(date_list[i] in s for s in select):
+                rex = re.compile(r'\S+\w*(%s)\w*.\w*'%date_list[i])
+                filenamelist = filter(rex.match,select)
+                filename = ''.join(filenamelist)
+                fread = open(filename,"r")
+                lines = fread.read()
+                print >>fopen, date_list[i],'\n',lines
+            else:
+                print >>fopen, date_list[i],'\n',"None",'\n'
 
-    
+            i+=1
+
+        fopen.close()    
+        count+=1
+
 if __name__ == "__main__":
     startdate = sys.argv[1]
     enddate = sys.argv[2]
